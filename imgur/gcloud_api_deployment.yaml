@@ -25,7 +25,7 @@ spec:
         tier: backend
     spec:
       containers:
-        - image: gcr.io/youfie-983ce/github-trevorprater-youfie-api-2:master
+        - image: gcr.io/youfie-983ce/github-trevorprater-youfie-crawler:df0997f658b234c4084f50d3df585cfabc950774
           name: web
           env:
             - name: GET_HOSTS_FROM

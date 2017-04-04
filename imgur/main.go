@@ -178,10 +178,10 @@ func main() {
 	results := make(chan *ImageRequest, 3)
 
 
-    for w := 0; w < 200; w++ {
+    for w := 0; w < 100; w++ {
         go worker(w, jobs, results)
     }
-	for ww := 0; ww < 50; ww++ {
+	for ww := 0; ww < 5; ww++ {
 		go req_worker(results)
 	}
 
