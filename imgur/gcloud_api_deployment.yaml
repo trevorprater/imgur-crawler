@@ -17,7 +17,7 @@ kind: Deployment
 metadata:
   name: youfie-crawler
 spec:
-  replicas: 5
+  replicas: 6
   template:
     metadata:
       labels:
@@ -25,7 +25,7 @@ spec:
         tier: backend
     spec:
       containers:
-        - image: gcr.io/youfie-983ce/github-trevorprater-youfie-crawler:d8ea42ddf79aa960da50935e35365cd23d162bf2
+        - image: gcr.io/youfie-983ce/github-trevorprater-youfie-crawler:416a1f21c4c55f5294d39cbb602fb87c917830c0
           name: web
           env:
             - name: GET_HOSTS_FROM

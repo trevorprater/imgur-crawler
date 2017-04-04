@@ -17,7 +17,7 @@ import (
 )
 
 const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-const url = "http://35.190.156.147:5000/api/embed"
+const url = "http://35.185.20.229:5000/api/embed"
 var r *rand.Rand
 var numRequests int
 var numFacesProcessed int
