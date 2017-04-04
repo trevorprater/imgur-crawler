@@ -17,7 +17,7 @@ import (
 )
 
 const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-const url = "http://35.185.20.229:5000/api/embed"
+const url = "http://35.185.90.126:5000/api/embed"
 var r *rand.Rand
 var numRequests int
 var numFacesProcessed int
@@ -98,7 +98,7 @@ func req_worker(imgRequestChan <- chan *ImageRequest) {
 	for true {
 		imgRequest := <-imgRequestChan
 			imgRequests = append(imgRequests, imgRequest)
-			if len(imgRequests) >= 3 {
+			if len(imgRequests) >= 1 {
 				embedResp, err := SendURLs(imgRequests)
 				if err != nil {
 					log.Println(err)
@@ -175,13 +175,13 @@ func generate_random_url(strlen int) string {
 
 func main() {
     jobs := make(chan string, 1)
-	results := make(chan *ImageRequest, 3)
+	results := make(chan *ImageRequest, 1)
 
 
     for w := 0; w < 100; w++ {
         go worker(w, jobs, results)
     }
-	for ww := 0; ww < 5; ww++ {
+	for ww := 0; ww < 1; ww++ {
 		go req_worker(results)
 	}
 
