@@ -150,7 +150,7 @@ func generate_random_url(strlen int) string {
 func main() {
     jobs := make(chan string, 1)
 
-    for w := 0; w < 100; w++ {
+    for w := 0; w < 200; w++ {
         go worker(w, jobs)
     }
 
