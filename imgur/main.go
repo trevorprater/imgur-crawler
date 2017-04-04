@@ -17,9 +17,10 @@ import (
 )
 
 const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-const url = "http://0.0.0.0:5000/api/embed"
+const url = "http://35.190.170.51:5000/api/embed"
 var r *rand.Rand
 var numRequests int
+var numFacesProcessed int
 var start time.Time
 
 type ImageRequest struct {
@@ -30,6 +31,17 @@ type ImageRequest struct {
 type EmbeddingRequest struct {
 	Images []*ImageRequest `json:"images"`
 }
+
+type ImageResponse struct {
+	URL string `json:"url"`
+	Faces []interface{} `json:"faces"`
+}
+
+
+type EmbeddingResponse struct {
+	Images []*ImageResponse `json:"images"`
+}
+
 
 
 func download_image(url string) (*ImageRequest, error) {
@@ -49,7 +61,7 @@ func download_image(url string) (*ImageRequest, error) {
 }
 
 
-func SendURLs(imgRequests []*ImageRequest) (*http.Response, error) {
+func SendURLs(imgRequests []*ImageRequest) (*EmbeddingResponse, error) {
 	embeddingRequest := &EmbeddingRequest{ Images: imgRequests }
 	jsonBytes, err := json.Marshal(embeddingRequest)
 	if err != nil {
@@ -71,16 +83,37 @@ func SendURLs(imgRequests []*ImageRequest) (*http.Response, error) {
 	contentLength, _ := strconv.Atoi(resp.Header.Get("Content-Length"))
 	if contentLength != 291 {
 		body, _ := ioutil.ReadAll(resp.Body)
-		fmt.Println(string(body))
-		fmt.Println("\n")
-		return resp, nil
-	} else {
+		var embeddingResponse EmbeddingResponse
+		err := json.Unmarshal(body, &embeddingResponse)
+		if err != nil {
+			log.Println(err)
+		}
+		return &embeddingResponse, nil
 	}
 	return nil, err
 }
 
-func worker(id int, jobs <-chan string) {
+func req_worker(imgRequestChan <- chan *ImageRequest) {
 	imgRequests := make([]*ImageRequest, 0)
+	for true {
+		imgRequest := <-imgRequestChan
+			imgRequests = append(imgRequests, imgRequest)
+			if len(imgRequests) >= 3 {
+				embedResp, err := SendURLs(imgRequests)
+				if err != nil {
+					log.Println(err)
+				} else {
+					for _, imgResp := range embedResp.Images {
+						fmt.Printf("num_faces = %v\n", len(imgResp.Faces))
+						numFacesProcessed += len(imgResp.Faces)
+					}
+				}
+				imgRequests = make([]*ImageRequest, 0)
+		}
+	}
+}
+
+func worker(id int, jobs <-chan string, imgRequestChan chan<- *ImageRequest) {
     for url := range jobs {
 		response, err := http.Get(url)
 		if err != nil {
@@ -100,7 +133,7 @@ func worker(id int, jobs <-chan string) {
 							if err != nil {
 								log.Printf("download_image -. %v", err)
 							} else {
-								imgRequests = append(imgRequests, imgRequest)
+								imgRequestChan <- imgRequest
 							}
 						}
 					}
@@ -112,14 +145,6 @@ func worker(id int, jobs <-chan string) {
 			}
 			response.Body.Close()
 		}
-		numRequests += 1
-		if len(imgRequests) >= 1 {
-			_, err := SendURLs(imgRequests)
-			if err != nil {
-				log.Println(err)
-			}
-			imgRequests = make([]*ImageRequest, 0)
-		}
 	}
 
 }
@@ -127,13 +152,14 @@ func worker(id int, jobs <-chan string) {
 func init() {
 	r = rand.New(rand.NewSource(time.Now().UnixNano()))
 	numRequests = 0
+	numFacesProcessed = 0
 	start = time.Now()
 }
 
 func print_requests_per_second() {
 	for true {
 		elapsed := time.Since(start)
-		log.Printf("REQUESTS / SEC = %v", float64(numRequests)/elapsed.Seconds())
+		log.Printf("FACES PROCESSED / SEC = %v", float64(numFacesProcessed)/elapsed.Seconds())
 		time.Sleep(10 * time.Second)
 	}
 }
@@ -149,10 +175,15 @@ func generate_random_url(strlen int) string {
 
 func main() {
     jobs := make(chan string, 1)
+	results := make(chan *ImageRequest, 3)
+
 
     for w := 0; w < 200; w++ {
-        go worker(w, jobs)
+        go worker(w, jobs, results)
     }
+	for ww := 0; ww < 50; ww++ {
+		go req_worker(results)
+	}
 
 	go print_requests_per_second()
 

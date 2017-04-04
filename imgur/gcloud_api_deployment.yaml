@@ -1,0 +1,50 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: youfie-api
+  labels:
+    app: youfie-api
+    tier: backend
+spec:
+    ports:
+    - port: 80
+    selector:
+      app: youfie-api
+      tier: backend
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: youfie-api
+spec:
+  replicas: 5
+  template:
+    metadata:
+      labels:
+        app: youfie-api
+        tier: backend
+    spec:
+      containers:
+        - image: gcr.io/youfie-983ce/github-trevorprater-youfie-api-2:master
+          name: web
+          env:
+            - name: GET_HOSTS_FROM
+              value: dns
+
+            # [END cloudsql_secrets]
+          ports:
+            - containerPort: 80
+          volumeMounts:
+            - name: ssl-certs
+              mountPath: /etc/ssl/certs
+            - name: cloudsql
+              mountPath: /cloudsql
+        # [END proxy_container]
+      # [START volumes]
+      volumes:
+        - name: ssl-certs
+          hostPath:
+            path: /etc/ssl/certs
+        - name: cloudsql
+          emptyDir:
+      # [END volumes]
