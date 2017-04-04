@@ -4,12 +4,14 @@ import (
 	"log"
 	"fmt"
 	"encoding/json"
+	"strconv"
 	"io/ioutil"
 	"bytes"
 	"time"
 	"net/http"
 	"math/rand"
 	"strings"
+	b64 "encoding/base64"
 
 	"golang.org/x/net/html"
 )
@@ -20,8 +22,36 @@ var r *rand.Rand
 var numRequests int
 var start time.Time
 
-func SendURLs(urls []string) (*http.Response, error) {
-	jsonBytes, err := json.Marshal(&urls)
+type ImageRequest struct {
+	URL string `json:"url"`
+	B64Bytes string `json:"b64_bytes"`
+}
+
+type EmbeddingRequest struct {
+	Images []*ImageRequest `json:"images"`
+}
+
+
+func download_image(url string) (*ImageRequest, error) {
+	res, err := http.Get(url)
+	if err != nil {
+		log.Printf("http.Get -> %v", err)
+	}
+
+	data, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		log.Printf("ioutil.ReadAll -> %v", err)
+	}
+	res.Body.Close()
+	sEnc := b64.StdEncoding.EncodeToString(data)
+	imgRequest := &ImageRequest{URL: url, B64Bytes: sEnc}
+	return imgRequest, err
+}
+
+
+func SendURLs(imgRequests []*ImageRequest) (*http.Response, error) {
+	embeddingRequest := &EmbeddingRequest{ Images: imgRequests }
+	jsonBytes, err := json.Marshal(embeddingRequest)
 	if err != nil {
 		log.Println("could not marshal urls to json")
 		return nil, err
@@ -31,19 +61,26 @@ func SendURLs(urls []string) (*http.Response, error) {
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
+	if err == nil {
+		defer resp.Body.Close()
+	}
 	if err != nil {
+		log.Println(err)
 		return nil, err
 	}
-	defer resp.Body.Close()
-	body, _ := ioutil.ReadAll(resp.Body)
-	fmt.Println(string(body))
-	return resp, nil
-	//respBody := make(struct{})
-	//err = json.Unmarshal(&body, &respBody)
+	contentLength, _ := strconv.Atoi(resp.Header.Get("Content-Length"))
+	if contentLength != 291 {
+		body, _ := ioutil.ReadAll(resp.Body)
+		fmt.Println(string(body))
+		fmt.Println("\n")
+		return resp, nil
+	} else {
+	}
+	return nil, err
 }
 
 func worker(id int, jobs <-chan string) {
-	urls := make([]string, 0)
+	imgRequests := make([]*ImageRequest, 0)
     for url := range jobs {
 		response, err := http.Get(url)
 		if err != nil {
@@ -59,7 +96,12 @@ func worker(id int, jobs <-chan string) {
 				f = func(n *html.Node) {
 					if n.Type == html.ElementNode && n.Data == "img" {
 						if strings.Contains(n.Attr[0].Val, ".png") || strings.Contains(n.Attr[0].Val, ".jpg") {
-							urls = append(urls, "http:" + n.Attr[0].Val)
+							imgRequest, err := download_image("http:" + n.Attr[0].Val)
+							if err != nil {
+								log.Printf("download_image -. %v", err)
+							} else {
+								imgRequests = append(imgRequests, imgRequest)
+							}
 						}
 					}
 					for c := n.FirstChild; c != nil; c = c.NextSibling {
@@ -71,12 +113,12 @@ func worker(id int, jobs <-chan string) {
 			response.Body.Close()
 		}
 		numRequests += 1
-		if len(urls) >= 1 {
-			_, err := SendURLs(urls)
+		if len(imgRequests) >= 1 {
+			_, err := SendURLs(imgRequests)
 			if err != nil {
 				log.Println(err)
 			}
-			urls = make([]string, 0)
+			imgRequests = make([]*ImageRequest, 0)
 		}
 	}
 
@@ -106,9 +148,9 @@ func generate_random_url(strlen int) string {
 }
 
 func main() {
-    jobs := make(chan string, 5)
+    jobs := make(chan string, 1)
 
-    for w := 0; w < 50; w++ {
+    for w := 0; w < 100; w++ {
         go worker(w, jobs)
     }
 
