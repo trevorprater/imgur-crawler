@@ -98,7 +98,7 @@ func req_worker(imgRequestChan <- chan *ImageRequest) {
 	for true {
 		imgRequest := <-imgRequestChan
 			imgRequests = append(imgRequests, imgRequest)
-			if len(imgRequests) >= 1 {
+			if len(imgRequests) >= 10 {
 				embedResp, err := SendURLs(imgRequests)
 				if err != nil {
 					log.Println(err)
@@ -175,13 +175,13 @@ func generate_random_url(strlen int) string {
 
 func main() {
     jobs := make(chan string, 1)
-	results := make(chan *ImageRequest, 1)
+	results := make(chan *ImageRequest, 10)
 
 
-    for w := 0; w < 100; w++ {
+    for w := 0; w < 150; w++ {
         go worker(w, jobs, results)
     }
-	for ww := 0; ww < 1; ww++ {
+	for ww := 0; ww < 10; ww++ {
 		go req_worker(results)
 	}
 
