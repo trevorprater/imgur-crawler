@@ -41,6 +41,7 @@ func download_image(url string) (*ImageRequest, error) {
 	data, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		log.Printf("ioutil.ReadAll -> %v", err)
+		return nil, err
 	}
 	res.Body.Close()
 	sEnc := b64.StdEncoding.EncodeToString(data)
