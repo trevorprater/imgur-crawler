@@ -58,7 +58,6 @@ func download_image(url, parent_url string) (*ImageRequest, error) {
 		return nil, err
 	}
 	if newImgSize.Width < 100 || newImgSize.Height < 100 {
-		log.Printf("image was too small, width = %v, height = %v, url = %v", newImgSize.Width, newImgSize.Height, url)
 		return nil, err
 	}
 	if newImage.Type() == "png" {
@@ -69,7 +68,8 @@ func download_image(url, parent_url string) (*ImageRequest, error) {
 		}
 		newImage = bimg.NewImage(convertedBytes)
 	}
-	thumbnailBytes, err := newImage.Thumbnail(200)
+	thumbnailImg := bimg.NewImage(data)
+	thumbnailBytes, err := thumbnailImg.Thumbnail(200)
 	if err != nil {
 		log.Printf("Could not generate a thumbnail: %v\n", err)
 		return nil, err
@@ -194,7 +194,7 @@ func main() {
 	for w := 0; w < 100; w++ {
 		go worker(w, jobs, results)
 	}
-	for ww := 0; ww < 10; ww++ {
+	for ww := 0; ww < 5; ww++ {
 		go req_worker(results)
 	}
 	for j := 1; j <= 100000000; j++ {
