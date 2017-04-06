@@ -1,25 +1,26 @@
 package main
 
 import (
-	"log"
-	"fmt"
+	b64 "encoding/base64"
 	"encoding/json"
 	"errors"
-	"strconv"
+	"fmt"
 	"io/ioutil"
-	"time"
-	"net/http"
+	"log"
 	"math/rand"
+	"net/http"
+	"strconv"
 	"strings"
-	b64 "encoding/base64"
+	"time"
 
-	"golang.org/x/net/html"
 	"github.com/Shopify/sarama"
+	"golang.org/x/net/html"
 	"gopkg.in/h2non/bimg.v1"
 )
 
 const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 const url = "http://35.185.90.126:5000/api/embed"
+
 var r *rand.Rand
 var numRequests int
 var start time.Time
@@ -28,8 +29,8 @@ var producerErr error
 var messagesPublished uint64
 
 type ImageRequest struct {
-	URL string `json:"url"`
-	B64Bytes string `json:"b64_bytes"`
+	URL               string `json:"url"`
+	B64Bytes          string `json:"b64_bytes"`
 	B64BytesThumbnail string `json:"b64_bytes_thumbnail"`
 }
 
@@ -68,7 +69,7 @@ func download_image(url string) (*ImageRequest, error) {
 	return imgRequest, err
 }
 
-func req_worker(imgRequestChan <- chan *ImageRequest) {
+func req_worker(imgRequestChan <-chan *ImageRequest) {
 	for true {
 		imgRequest := <-imgRequestChan
 		jsonBytes, err := json.Marshal(imgRequest)
@@ -78,13 +79,13 @@ func req_worker(imgRequestChan <- chan *ImageRequest) {
 		}
 		msg := &sarama.ProducerMessage{
 			Topic: "facenet",
-			Key: sarama.StringEncoder(strTime),
+			Key:   sarama.StringEncoder(strTime),
 			Value: sarama.StringEncoder(string(jsonBytes)),
 		}
 		select {
 		case producer.Input() <- msg:
 			messagesPublished += 1
-			if messagesPublished % 100 == 0 {
+			if messagesPublished%100 == 0 {
 				fmt.Printf("%v messages published\n", messagesPublished)
 			}
 		case err := <-producer.Errors():
@@ -95,7 +96,7 @@ func req_worker(imgRequestChan <- chan *ImageRequest) {
 }
 
 func worker(id int, jobs <-chan string, imgRequestChan chan<- *ImageRequest) {
-    for url := range jobs {
+	for url := range jobs {
 		response, err := http.Get(url)
 		if err != nil {
 			log.Println(err)
@@ -158,7 +159,7 @@ func generate_random_url(strlen int) string {
 }
 
 func main() {
-    jobs := make(chan string, 1)
+	jobs := make(chan string, 1)
 	results := make(chan *ImageRequest, 10)
 
 	defer func() {
@@ -167,15 +168,14 @@ func main() {
 		}
 	}()
 
-    for w := 0; w < 100; w++ {
-        go worker(w, jobs, results)
-    }
+	for w := 0; w < 100; w++ {
+		go worker(w, jobs, results)
+	}
 	for ww := 0; ww < 5; ww++ {
 		go req_worker(results)
 	}
-    for j := 1; j <= 100000000; j++ {
-        jobs <- generate_random_url(5)
-    }
-    close(jobs)
+	for j := 1; j <= 100000000; j++ {
+		jobs <- generate_random_url(5)
+	}
+	close(jobs)
 }
-
