@@ -15,20 +15,22 @@ import (
 
 	"golang.org/x/net/html"
 	"github.com/Shopify/sarama"
+	"gopkg.in/h2non/bimg.v1"
 )
 
 const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 const url = "http://35.185.90.126:5000/api/embed"
 var r *rand.Rand
 var numRequests int
-var numFacesProcessed int
 var start time.Time
 var producer sarama.AsyncProducer
 var producerErr error
+var messagesPublished uint64
 
 type ImageRequest struct {
 	URL string `json:"url"`
 	B64Bytes string `json:"b64_bytes"`
+	B64BytesThumbnail string `json:"b64_bytes_thumbnail"`
 }
 
 func download_image(url string) (*ImageRequest, error) {
@@ -44,8 +46,25 @@ func download_image(url string) (*ImageRequest, error) {
 		return nil, err
 	}
 	res.Body.Close()
-	sEnc := b64.StdEncoding.EncodeToString(data)
-	imgRequest := &ImageRequest{URL: url, B64Bytes: sEnc}
+
+	newImage := bimg.NewImage(data)
+	if newImage.Type() == "png" {
+		convertedBytes, err := newImage.Convert(bimg.JPEG)
+		if err != nil {
+			log.Printf("Could not convert image: %v\n", err)
+			return nil, err
+		}
+		newImage = bimg.NewImage(convertedBytes)
+	}
+	thumbnailBytes, err := newImage.Thumbnail(200)
+	if err != nil {
+		log.Printf("Could not generate a thumbnail: %v\n", err)
+		return nil, err
+	}
+
+	b64EncImageRaw := b64.StdEncoding.EncodeToString(newImage.Image())
+	b64EncImageThumbnail := b64.StdEncoding.EncodeToString(thumbnailBytes)
+	imgRequest := &ImageRequest{URL: url, B64Bytes: b64EncImageRaw, B64BytesThumbnail: b64EncImageThumbnail}
 	return imgRequest, err
 }
 
@@ -64,11 +83,12 @@ func req_worker(imgRequestChan <- chan *ImageRequest) {
 		}
 		select {
 		case producer.Input() <- msg:
-			fmt.Println("Produce message")
+			messagesPublished += 1
+			if messagesPublished % 100 == 0 {
+				fmt.Printf("%v messages published\n", messagesPublished)
+			}
 		case err := <-producer.Errors():
 			fmt.Println("Failed to produce mesage:", err)
-//		case <-signals:
-//			doneCh <- struct{}{}
 		}
 
 	}
@@ -113,7 +133,7 @@ func worker(id int, jobs <-chan string, imgRequestChan chan<- *ImageRequest) {
 func init() {
 	r = rand.New(rand.NewSource(time.Now().UnixNano()))
 	numRequests = 0
-	numFacesProcessed = 0
+	messagesPublished = 0
 	start = time.Now()
 	config := sarama.NewConfig()
 	//config.Net.SASL.Enable = true
@@ -128,15 +148,6 @@ func init() {
 		panic(producerErr)
 	}
 }
-
-func print_requests_per_second() {
-	for true {
-		elapsed := time.Since(start)
-		log.Printf("FACES PROCESSED / SEC = %v", float64(numFacesProcessed)/elapsed.Seconds())
-		time.Sleep(10 * time.Second)
-	}
-}
-
 
 func generate_random_url(strlen int) string {
 	result := make([]byte, strlen)
@@ -162,10 +173,6 @@ func main() {
 	for ww := 0; ww < 5; ww++ {
 		go req_worker(results)
 	}
-
-	go print_requests_per_second()
-
-
     for j := 1; j <= 100000000; j++ {
         jobs <- generate_random_url(5)
     }
