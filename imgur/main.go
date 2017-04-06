@@ -5,7 +5,6 @@ import (
 	b64 "encoding/base64"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"math/rand"
@@ -107,10 +106,10 @@ func req_worker(imgRequestChan <-chan *ImageRequest) {
 		case producer.Input() <- msg:
 			messagesPublished += 1
 			if messagesPublished%100 == 0 {
-				fmt.Printf("%v messages published\n", messagesPublished)
+				log.Printf("%v messages published\n", messagesPublished)
 			}
 		case err := <-producer.Errors():
-			fmt.Println("Failed to produce mesage: url = %v, err = %v", imgRequest.URL, err)
+			log.Println("Failed to produce mesage: url = %v, err = %v", imgRequest.URL, err)
 		}
 
 	}
@@ -125,7 +124,7 @@ func worker(id int, jobs <-chan string, imgRequestChan chan<- *ImageRequest) {
 			if response.StatusCode != 404 {
 				doc, err := html.Parse(response.Body)
 				if err != nil {
-					fmt.Println(err)
+					log.Println(err)
 					break
 				}
 				var f func(*html.Node)
@@ -168,6 +167,7 @@ func init() {
 	brokers := []string{"104.196.19.209:9092"}
 	producer, producerErr = sarama.NewAsyncProducer(brokers, config)
 	if producerErr != nil {
+		log.Println("producer error")
 		panic(errors.New("producer error"))
 		panic(producerErr)
 	}
