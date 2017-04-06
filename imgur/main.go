@@ -84,7 +84,7 @@ func download_image(url, parent_url string) (*ImageRequest, error) {
 		URL:               url,
 		B64Bytes:          b64EncImageRaw,
 		B64BytesThumbnail: b64EncImageThumbnail,
-		SHA256Hash:        string(hash.Sum(nil)),
+		SHA256Hash:        b64.URLEncoding.EncodeToString(hash.Sum(nil)),
 		ParentURL:         parent_url,
 	}
 	return imgRequest, err
