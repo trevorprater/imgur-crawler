@@ -191,10 +191,10 @@ func main() {
 		}
 	}()
 
-	for w := 0; w < 150; w++ {
+	for w := 0; w < 10; w++ {
 		go worker(w, jobs, results)
 	}
-	for ww := 0; ww < 5; ww++ {
+	for ww := 0; ww < 1; ww++ {
 		go req_worker(results)
 	}
 	for j := 1; j <= 100000000; j++ {

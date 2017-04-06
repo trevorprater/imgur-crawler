@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: youfie-crawler
 spec:
-  replicas: 4
+  replicas: 10
   template:
     metadata:
       labels:
@@ -11,7 +11,7 @@ spec:
         tier: backend
     spec:
       containers:
-        - image: gcr.io/youfie-983ce/github-trevorprater-youfie-crawler:f38ba7d6d5944f800dd4c4d12e2b72d276391313
+        - image: gcr.io/youfie-983ce/github-trevorprater-youfie-crawler:b1e3e9864dab859748835d1b11ffba7ea876ca13
 
           name: youfie-crawler-imgur
           env:
