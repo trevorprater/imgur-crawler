@@ -11,7 +11,7 @@ spec:
         tier: backend
     spec:
       containers:
-        - image: gcr.io/youfie-983ce/github-trevorprater-youfie-crawler:03a058197b59861c2890ae5973af13702781f8b0  
+        - image: gcr.io/youfie-983ce/github-trevorprater-youfie-crawler:f38ba7d6d5944f800dd4c4d12e2b72d276391313
 
           name: youfie-crawler-imgur
           env:

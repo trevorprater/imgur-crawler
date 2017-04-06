@@ -99,7 +99,7 @@ func req_worker(imgRequestChan <-chan *ImageRequest) {
 			log.Println("could not marshal urls to json")
 		}
 		msg := &sarama.ProducerMessage{
-			Topic: "facenet",
+			Topic: "facenet-new",
 			Key:   sarama.StringEncoder(strTime),
 			Value: sarama.StringEncoder(string(jsonBytes)),
 		}
@@ -194,7 +194,7 @@ func main() {
 	for w := 0; w < 150; w++ {
 		go worker(w, jobs, results)
 	}
-	for ww := 0; ww < 10; ww++ {
+	for ww := 0; ww < 5; ww++ {
 		go req_worker(results)
 	}
 	for j := 1; j <= 100000000; j++ {
