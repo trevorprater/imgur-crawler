@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/sha256"
 	b64 "encoding/base64"
 	"encoding/json"
 	"errors"
@@ -30,11 +31,13 @@ var messagesPublished uint64
 
 type ImageRequest struct {
 	URL               string `json:"url"`
+	ParentURL         string `json:"parent_url"`
 	B64Bytes          string `json:"b64_bytes"`
 	B64BytesThumbnail string `json:"b64_bytes_thumbnail"`
+	SHA256Hash        string `json:"sha256"`
 }
 
-func download_image(url string) (*ImageRequest, error) {
+func download_image(url, parent_url string) (*ImageRequest, error) {
 	res, err := http.Get(url)
 	if err != nil {
 		log.Printf("http.Get -> %v", err)
@@ -49,6 +52,15 @@ func download_image(url string) (*ImageRequest, error) {
 	res.Body.Close()
 
 	newImage := bimg.NewImage(data)
+	newImgSize, err := newImage.Size()
+	if err != nil {
+		log.Printf("Could not get size of image: %v", err)
+		return nil, err
+	}
+	if newImgSize.Width < 100 || newImgSize.Height < 100 {
+		log.Printf("image was too small, width = %v, height = %v, url = %v", newImgSize.Width, newImgSize.Height, url)
+		return nil, err
+	}
 	if newImage.Type() == "png" {
 		convertedBytes, err := newImage.Convert(bimg.JPEG)
 		if err != nil {
@@ -63,9 +75,18 @@ func download_image(url string) (*ImageRequest, error) {
 		return nil, err
 	}
 
-	b64EncImageRaw := b64.StdEncoding.EncodeToString(newImage.Image())
+	imageRawBytes := newImage.Image()
+	hash := sha256.New()
+	hash.Write(imageRawBytes)
+	b64EncImageRaw := b64.StdEncoding.EncodeToString(imageRawBytes)
 	b64EncImageThumbnail := b64.StdEncoding.EncodeToString(thumbnailBytes)
-	imgRequest := &ImageRequest{URL: url, B64Bytes: b64EncImageRaw, B64BytesThumbnail: b64EncImageThumbnail}
+	imgRequest := &ImageRequest{
+		URL:               url,
+		B64Bytes:          b64EncImageRaw,
+		B64BytesThumbnail: b64EncImageThumbnail,
+		SHA256Hash:        string(hash.Sum(nil)),
+		ParentURL:         parent_url,
+	}
 	return imgRequest, err
 }
 
@@ -89,7 +110,7 @@ func req_worker(imgRequestChan <-chan *ImageRequest) {
 				fmt.Printf("%v messages published\n", messagesPublished)
 			}
 		case err := <-producer.Errors():
-			fmt.Println("Failed to produce mesage:", err)
+			fmt.Println("Failed to produce mesage: url = %v, err = %v", imgRequest.URL, err)
 		}
 
 	}
@@ -111,11 +132,13 @@ func worker(id int, jobs <-chan string, imgRequestChan chan<- *ImageRequest) {
 				f = func(n *html.Node) {
 					if n.Type == html.ElementNode && n.Data == "img" {
 						if strings.Contains(n.Attr[0].Val, ".png") || strings.Contains(n.Attr[0].Val, ".jpg") {
-							imgRequest, err := download_image("http:" + n.Attr[0].Val)
+							imgRequest, err := download_image("http:"+n.Attr[0].Val, url)
 							if err != nil {
-								log.Printf("download_image -. %v", err)
+								log.Printf("download_image failed: -. %v", err)
 							} else {
-								imgRequestChan <- imgRequest
+								if imgRequest != nil {
+									imgRequestChan <- imgRequest
+								}
 							}
 						}
 					}
@@ -171,7 +194,7 @@ func main() {
 	for w := 0; w < 100; w++ {
 		go worker(w, jobs, results)
 	}
-	for ww := 0; ww < 5; ww++ {
+	for ww := 0; ww < 10; ww++ {
 		go req_worker(results)
 	}
 	for j := 1; j <= 100000000; j++ {
