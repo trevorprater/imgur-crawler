@@ -1,23 +1,9 @@
-apiVersion: v1
-kind: Service
-metadata:
-  name: youfie-crawler
-  labels:
-    app: youfie-crawler
-    tier: backend
-spec:
-    ports:
-    - port: 80
-    selector:
-      app: youfie-api
-      tier: backend
----
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
   name: youfie-crawler
 spec:
-  replicas: 6
+  replicas: 4
   template:
     metadata:
       labels:
@@ -25,8 +11,9 @@ spec:
         tier: backend
     spec:
       containers:
-        - image: gcr.io/youfie-983ce/github-trevorprater-youfie-crawler:a1135842a105e5b142bb46f6f9c89ddf74b777f9
-          name: web
+        - image: gcr.io/youfie-983ce/github-trevorprater-youfie-crawler:03a058197b59861c2890ae5973af13702781f8b0  
+
+          name: youfie-crawler-imgur
           env:
             - name: GET_HOSTS_FROM
               value: dns
