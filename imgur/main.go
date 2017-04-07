@@ -164,7 +164,7 @@ func init() {
 	//config.Net.SASL.User = "user"
 	config.Producer.Retry.Max = 5
 	config.Producer.RequiredAcks = sarama.WaitForAll
-	brokers := []string{"104.196.19.209:9092"}
+	brokers := []string{"10.142.0.3:9092"}
 	producer, producerErr = sarama.NewAsyncProducer(brokers, config)
 	if producerErr != nil {
 		log.Println("producer error")
