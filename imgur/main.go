@@ -98,7 +98,7 @@ func req_worker(imgRequestChan <-chan *ImageRequest) {
 			log.Println("could not marshal urls to json")
 		}
 		msg := &sarama.ProducerMessage{
-			Topic: "recservice",
+			Topic: "bluefin",
 			Key:   sarama.StringEncoder(strTime),
 			Value: sarama.StringEncoder(string(jsonBytes)),
 		}
